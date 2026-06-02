@@ -3,21 +3,11 @@ const router = express.Router();
 const { nanoid } = require('nanoid');
 const db = require('../db/database');
 const { client } = require('../db/cache');
+const { validateUrl } = require('../middleware/validate');
 
 // POST /shorten
-router.post('/shorten', (req, res) => {
+router.post('/shorten', validateUrl, (req, res) => {
   const { url } = req.body;
-
-  if (!url) {
-    return res.status(400).json({ error: 'URL is required' });
-  }
-
-  try {
-    new URL(url);
-  } catch {
-    return res.status(400).json({ error: 'Invalid URL' });
-  }
-
   const short_code = nanoid(6);
 
   try {
