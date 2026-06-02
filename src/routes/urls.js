@@ -1,41 +1,38 @@
-const { client } = require('../db/cache');
 const express = require('express');
 const router = express.Router();
+const { nanoid } = require('nanoid');
+const db = require('../db/database');
+const { client } = require('../db/cache');
 
-// GET /:code — redirect
-router.get('/:code', async (req, res) => {
-  const { code } = req.params;
-  const cacheKey = `url:${code}`;
+// POST /shorten
+router.post('/shorten', (req, res) => {
+  const { url } = req.body;
 
-  // Check cache first
-  const cached = await client.get(cacheKey);
-  if (cached) {
-    logClick(code);               // still track the click
-    return res.redirect(301, cached);
+  if (!url) {
+    return res.status(400).json({ error: 'URL is required' });
   }
 
-  // Cache miss: hit the database
-  const row = db.prepare('SELECT * FROM urls WHERE short_code = ?').get(code);
-  if (!row) return res.status(404).json({ error: 'Not found' });
+  try {
+    new URL(url);
+  } catch {
+    return res.status(400).json({ error: 'Invalid URL' });
+  }
 
-  // Store in Redis with 1 hour TTL
-  await client.setEx(cacheKey, 3600, row.original_url);
+  const short_code = nanoid(6);
 
-  logClick(code);
-  return res.redirect(301, row.original_url);
-});
+  try {
+    db.prepare(`
+      INSERT INTO urls (short_code, original_url) VALUES (?, ?)
+    `).run(short_code, url);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to save URL' });
+  }
 
-// Delete
-router.delete('/:code', async (req, res) => {
-  const { code } = req.params;
-
-  const row = db.prepare('SELECT id FROM urls WHERE short_code = ?').get(code);
-  if (!row) return res.status(404).json({ error: 'Not found' });
-
-  db.prepare('DELETE FROM urls WHERE short_code = ?').run(code);
-  await client.del(`url:${code}`);   // remove from cache
-
-  res.json({ message: 'Deleted' });
+  return res.status(201).json({
+    short_code,
+    short_url: `${process.env.BASE_URL}/${short_code}`,
+    original_url: url,
+  });
 });
 
 module.exports = router;
