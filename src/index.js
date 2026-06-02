@@ -17,6 +17,17 @@ const start = async () => {
   });
 };
 
+app.get('/', (req, res) => {
+  res.json({
+    name: 'URL Shortener API',
+    endpoints: {
+      shorten: 'POST /shorten',
+      redirect: 'GET /:code',
+      stats: 'GET /:code/stats'
+    }
+  });
+});
+
 // error handling
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
