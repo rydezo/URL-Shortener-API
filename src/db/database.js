@@ -1,12 +1,16 @@
 const Database = require('better-sqlite3');
 const path = require('path');
+const fs = require('fs');
 
-const db = new Database(path.join(__dirname, '../../data/urls.db'));
+const dataDir = path.join(__dirname, '../../data');
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
 
-// Enable WAL mode for better performance
+const db = new Database(path.join(dataDir, 'urls.db'));
+
 db.pragma('journal_mode = WAL');
 
-// Create tables if they don't exist
 db.exec(`
   CREATE TABLE IF NOT EXISTS urls (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26,5 +30,3 @@ db.exec(`
 `);
 
 module.exports = db;
-
-console.log('Database ready:', db.name);
